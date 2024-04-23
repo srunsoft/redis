@@ -3,23 +3,32 @@
 namespace srun\redis;
 
 use yii\db\Exception;
+use yii\redis\SocketException;
 
 class Connection extends \yii\redis\Connection
 {
     /**
+     * 执行redis command，这里针对hash传递进来的数组做单独处理，参考北向接口的array2hash
+     * 因为 yii2-redis 直接使用的 redis 协议 与 redis server 交互.所以传递进来的数组是value,value存在hash的
+     * 而自服务的hash缓存都是 数组 key=>value,key=>value
+     *
      * @param $name
      * @param $params
-     * @return array|bool|mixed|string|null
+     * @return array|bool|string|null
      * @throws Exception
+     * @throws SocketException
      */
     public function executeCommand($name, $params = [])
     {
         $this->open();
 
-        array_unshift($params, $name);
-        $command = '*' . count($params) . "\r\n";
+        $params = array_merge(explode(' ', $name), $params);
+
+        $command = '';
+        $count = count($params);
         foreach ($params as $arg) {
             if (is_array($arg)) {
+                $count += count($arg) + 1;
                 foreach ($arg as $key => $value) {
                     $command .= '$' . mb_strlen($key, '8bit') . "\r\n" . $key . "\r\n";
                     $command .= '$' . mb_strlen($value, '8bit') . "\r\n" . $value . "\r\n";
@@ -28,10 +37,38 @@ class Connection extends \yii\redis\Connection
                 $command .= '$' . mb_strlen($arg, '8bit') . "\r\n" . $arg . "\r\n";
             }
         }
+        $command = '*' . $count . "\r\n" . $command;
 
         \Yii::trace("Executing Redis Command: {$name}", __METHOD__);
-        fwrite($this->_socket, $command);
+        if ($this->retries > 0) {
+            $tries = $this->retries;
+            while ($tries-- > 0) {
+                try {
+                    return $this->sendRawCommand($command, $params);
+                } catch (SocketException $e) {
+                    \Yii::error($e, __METHOD__);
+                    // backup retries, fail on commands that fail inside here
+                    $retries = $this->retries;
+                    $this->retries = 0;
+                    $this->close();
+                    if ($this->retryInterval > 0) {
+                        usleep($this->retryInterval);
+                    }
+                    try {
+                        $this->open();
+                    } catch (SocketException $exception) {
+                        // Fail to run initial commands, skip current try
+                        \Yii::error($exception, __METHOD__);
+                        $this->close();
+                    } catch (Exception $exception) {
+                        $this->close();
+                    }
 
-        return $this->parseResponse(implode(' ', $params));
+                    $this->retries = $retries;
+                }
+            }
+        }
+        return $this->sendRawCommand($command, $params);
     }
+
 }
