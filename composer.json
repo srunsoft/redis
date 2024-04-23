@@ -1,0 +1,21 @@
+{
+  "name": "srun/redis",
+  "description": "将redis协议返回的hash做响应相应处理",
+  "require": {
+    "yiisoft/yii2-redis": "^2.0.17",
+    "ext-mbstring": "*"
+  },
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "srun\\redis\\": "src/"
+    }
+  },
+  "authors": [
+    {
+      "name": "原桐",
+      "email": "yuantong@srun.com"
+    }
+  ],
+  "minimum-stability": "dev"
+}
