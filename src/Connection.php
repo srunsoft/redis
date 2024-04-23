@@ -31,7 +31,7 @@ class Connection extends \yii\redis\Connection
         $count = count($params);
         foreach ($params as $arg) {
             if (is_array($arg)) {
-                $count += count($arg) + 1;
+                $count += count($arg) * 2 - 1;
                 foreach ($arg as $key => $value) {
                     $command .= '$' . mb_strlen($key, '8bit') . "\r\n" . $key . "\r\n";
                     $command .= '$' . mb_strlen($value, '8bit') . "\r\n" . $value . "\r\n";
