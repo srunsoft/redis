@@ -7,6 +7,7 @@ use yii\redis\SocketException;
 
 /**
  * @method hmset($key, $array)
+ * @method hmget($key, ...$field)
  */
 class Connection extends \yii\redis\Connection
 {
@@ -76,7 +77,7 @@ class Connection extends \yii\redis\Connection
 
 
     /**
-     * 处理 hgetall 时将数组转换为关联数组
+     * 处理 hgetall,hmget 时将数组转换为关联数组
      * eg: [key,value,key1,value1,...more] translate [key => value, key1 => value1, ...more]
      *
      * @param $command
@@ -89,6 +90,12 @@ class Connection extends \yii\redis\Connection
     {
         $data = parent::sendRawCommand($command, $params);
 
+        if (is_array($data) && current($params) == 'HMGET') {
+            $result = $params;
+            unset($result[0]);
+            unset($result[1]);
+            return array_combine($result, $data);
+        }
         if (is_array($data) && current($params) == 'HGETALL') {
             $result = [];
             foreach ($data as $k => $v) {
