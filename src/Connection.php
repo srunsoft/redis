@@ -5,6 +5,9 @@ namespace srun\redis;
 use yii\db\Exception;
 use yii\redis\SocketException;
 
+/**
+ * @method hmset($key, $array)
+ */
 class Connection extends \yii\redis\Connection
 {
     /**
@@ -71,4 +74,31 @@ class Connection extends \yii\redis\Connection
         return $this->sendRawCommand($command, $params);
     }
 
+
+    /**
+     * 处理 hgetall 时将数组转换为关联数组
+     * eg: [key,value,key1,value1,...more] translate [key => value, key1 => value1, ...more]
+     *
+     * @param $command
+     * @param $params
+     * @return array|bool|string|null
+     * @throws Exception
+     * @throws SocketException
+     */
+    protected function sendRawCommand($command, $params)
+    {
+        $data = parent::sendRawCommand($command, $params);
+
+        if (is_array($data) && current($params) == 'HGETALL') {
+            $result = [];
+            foreach ($data as $k => $v) {
+                if ($k > 0 && $k % 2 != 0) {
+                    $result[$data[$k - 1]] = $v;
+                }
+            }
+            return $result;
+        }
+
+        return $data;
+    }
 }
