@@ -16,7 +16,7 @@ composer require srun/redis
 ```
 
 ## 配置
-将项目中`\yii\redis\Connection` 替换为 `/srun/redis/Connection`
+将项目中`\yii\redis\Connection` 替换为 `\srun\redis\Connection`
 ```php
 use srun/redis/Connection
 ```
