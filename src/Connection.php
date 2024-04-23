@@ -26,22 +26,26 @@ class Connection extends \yii\redis\Connection
     {
         $this->open();
 
-        $params = array_merge(explode(' ', $name), $params);
-
-        $command = '';
-        $count = count($params);
-        foreach ($params as $arg) {
-            if (is_array($arg)) {
-                $count += count($arg) * 2 - 1;
-                foreach ($arg as $key => $value) {
-                    $command .= '$' . mb_strlen($key, '8bit') . "\r\n" . $key . "\r\n";
-                    $command .= '$' . mb_strlen($value, '8bit') . "\r\n" . $value . "\r\n";
+        if (is_array(end($params))) {
+            $args = array_pop($params);
+            $setArgs = [];
+            foreach ($args as $attribute => $value) {
+                if ($value !== null) {
+                    if (is_bool($value)) {
+                        $value = (int) $value;
+                    }
+                    $setArgs[] = $attribute;
+                    $setArgs[] = $value;
                 }
-            } else {
-                $command .= '$' . mb_strlen($arg, '8bit') . "\r\n" . $arg . "\r\n";
             }
+            $params = array_merge($params, $setArgs);
         }
-        $command = '*' . $count . "\r\n" . $command;
+
+        $params = array_merge(explode(' ', $name), $params);
+        $command = '*' . count($params) . "\r\n";
+        foreach ($params as $arg) {
+            $command .= '$' . mb_strlen($arg, '8bit') . "\r\n" . $arg . "\r\n";
+        }
 
         \Yii::trace("Executing Redis Command: {$name}", __METHOD__);
         if ($this->retries > 0) {
